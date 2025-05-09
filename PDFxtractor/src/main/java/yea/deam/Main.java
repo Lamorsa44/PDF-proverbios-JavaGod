@@ -1,24 +1,14 @@
 package yea.deam;
 
-import org.apache.pdfbox.cos.COSDocument;
-import org.apache.pdfbox.cos.COSName;
-import org.apache.pdfbox.cos.COSObject;
 import org.apache.pdfbox.io.RandomAccessReadBuffer;
-import org.apache.pdfbox.io.RandomAccessReadBufferedFile;
-import org.apache.pdfbox.pdfparser.COSParser;
 import org.apache.pdfbox.pdfparser.PDFParser;
 import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDDocumentCatalog;
-import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.text.PDFTextStripper;
-
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.file.Files;
-import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -27,7 +17,6 @@ public class Main {
     private static String chapterRegex = ".*CAPÍTULO \\d.*";
     private static Path biblia = Path.of("./src/main/resources/Biblia.pdf");
     private static int firstPage = 1045;
-    private static int otherPage = 1048;
     private static int lastPage = 1095;
 
     public static void main(String[] args) throws IOException {
@@ -41,14 +30,15 @@ public class Main {
 
         var chapters = getChapters(text);
         chapters.forEach(System.out::println);
-        Files.createDirectory(Path.of("./pure/"));
+        Path dir = Path.of("./pure/");
+        if (!Files.exists(dir)) {
+            Files.createDirectory(dir);
+        }
         chapters.forEach(chapter -> {
-            Path path = Paths.get("./pure/", chapter.chapter() + ".txt");
-            try (var br = Files.newBufferedWriter(path)) {
-                br.write(chapter.chapter());
-                br.newLine();
-                br.write(chapter.description());
-                br.newLine();
+            Path path = Paths.get(dir.toString(), chapter.chapter() + ".txt");
+            try (var br = Files.newBufferedWriter(path, StandardOpenOption.TRUNCATE_EXISTING)) {
+                br.write(chapter.chapter()); br.newLine();
+                br.write(chapter.description()); br.newLine();
                 br.write(String.join("\n", chapter.proverbs()));
             } catch (IOException e) {
                 throw new RuntimeException("Fokiu", e);
@@ -84,7 +74,10 @@ public class Main {
                     proverbs.add(proverb);
                     proverb = "";
                 }
-                proverb += line.matches("[y;?]") ? " " + line : line;
+                if (line.matches("^\\w.*") && proverb.matches(".*\\w$")) {
+                    proverb += " ";
+                }
+                proverb += line.matches("^[,;?].*") ? " " + line : line;
             }
         }
         return proverbs.stream().filter(s -> !s.matches("^\\d+\\s+\\d+.*"))
